@@ -1,0 +1,53 @@
+---
+title: "Plant observation map"
+author: "Dennis Amnebrink"
+format: html
+editor: visual
+---
+
+A map of all my flora incognita observations of plants around Sweden.
+```{r}
+#| echo: false
+#| warning: false
+# Libraries
+library(leaflet)
+library(leaflet.extras2)
+library(htmlwidgets)
+library(tidyverse)
+library(renv)
+```
+
+```{r}
+#| echo: false
+ # Data loading
+dat <- read.csv("../Data/flora_incognita_2025-07-29T17_58_10/flora_incognita_2025-07-29T17_58_10.csv", header=TRUE)  %>%
+  filter(!is.na(longitude)) %>% # Removing observations without coordinates
+  mutate(PicLoc  =  paste0("Data/flora_incognita_2025-07-29T17_58_10/",date,"/",date,"-0.jpg")) %>% # Picture Location for each observation 
+  mutate(newname =  paste0("<iframe  src=","'", PicLoc,"'", ">", "</iframe>"))
+```
+
+
+
+```{r}
+#| echo: false
+# Creating the map with clustered observations
+map1 <- leaflet(data = dat)   %>%
+  addProviderTiles('OpenStreetMap.Mapnik' )  %>%
+  addCircleMarkers(lng = ~longitude, lat = ~latitude,
+          label = ~paste(scientific.name, name, sep = ", "),
+          popup = ~ PicLoc, 
+          radius=7, 
+          labelOptions = labelOptions(style = list("color" = "black"), 
+                  noHide = T, textOnly=T, textsize = "10px", offset = c(1, 12)), 
+          color="black",clusterOptions = markerClusterOptions(spiderfyOnMaxZoom=T))
+ 
+
+map1
+
+  
+
+```
+\
+\
+\
+Original code provided by flora incognita at https://floraincognita.com/wp-content/uploads/2023/07/R_MapExport_EN.txt
