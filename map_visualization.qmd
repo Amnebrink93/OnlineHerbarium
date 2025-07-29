@@ -15,6 +15,8 @@ library(leaflet.extras2)
 library(htmlwidgets)
 library(tidyverse)
 library(renv)
+library(leafpop)
+library(sf)
 ```
 
 ```{r}
@@ -22,7 +24,7 @@ library(renv)
  # Data loading
 dat <- read.csv("../Data/flora_incognita_2025-07-29T17_58_10/flora_incognita_2025-07-29T17_58_10.csv", header=TRUE)  %>%
   filter(!is.na(longitude)) %>% # Removing observations without coordinates
-  mutate(PicLoc  =  paste0("Data/flora_incognita_2025-07-29T17_58_10/",date,"/",date,"-0.jpg")) %>% # Picture Location for each observation 
+  mutate(PicLoc  =  paste0("../Data/flora_incognita_2025-07-29T17_58_10/",date,"/",date,"-0.jpg")) %>% # Picture Location for each observation 
   mutate(newname =  paste0("<iframe  src=","'", PicLoc,"'", ">", "</iframe>"))
 ```
 
@@ -30,22 +32,80 @@ dat <- read.csv("../Data/flora_incognita_2025-07-29T17_58_10/flora_incognita_202
 
 ```{r}
 #| echo: false
-# Creating the map with clustered observations
+#| eval: false
+# Creating the map with clustered observations, not used as it could not include pictures for some reason
 map1 <- leaflet(data = dat)   %>%
   addProviderTiles('OpenStreetMap.Mapnik' )  %>%
   addCircleMarkers(lng = ~longitude, lat = ~latitude,
           label = ~paste(scientific.name, name, sep = ", "),
-          popup = ~ PicLoc, 
           radius=7, 
           labelOptions = labelOptions(style = list("color" = "black"), 
                   noHide = T, textOnly=T, textsize = "10px", offset = c(1, 12)), 
-          color="black",clusterOptions = markerClusterOptions(spiderfyOnMaxZoom=T))
+          color="black",clusterOptions = markerClusterOptions(spiderfyOnMaxZoom=F)) %>%
+addPopupImages(img, group = "pnt2")
+
  
 
 map1
 
+saveWidget(map1, file="../Results/map.html")
+
+
+```
+
+
+```{r}
+#| echo: false
+#| eval: false
+### Playing around
+data2 <- dat[c(1,2),c(1,2,3,4,5,6,7,8)]
   
 
+leaflet() %>%
+  addTiles() %>%
+  addCircleMarkers(data = breweries91,
+                   popup = popupTable(breweries91))
+
+pnt = st_as_sf(data.frame(x = 174.764474, y = -36.877245),
+                coords = c("x", "y"),
+                crs = 4326)
+
+pnt2 = st_as_sf(data.frame(x = data2$latitude , y = data2$longitude),
+                coords = c('x', 'y'),
+                crs = 4326)
+
+img = c("../Data/flora_incognita_2025-07-29T17_58_10/2025-06-13T13_56_53Z/2025-06-13T13_56_53Z-0.jpg","../Data/flora_incognita_2025-07-29T17_58_10/2025-06-13T13_56_53Z/2025-06-13T13_56_53Z-0.jpg")
+
+leaflet() %>%
+  addTiles() %>%
+  addCircleMarkers(data = pnt2, group = "pnt2") %>%
+  addPopupImages(img, group = "pnt2")
+```
+
+```{r}
+#| echo: false
+### This is working, keep it
+
+pnt2 = st_as_sf(data.frame(x = dat$longitude , y = dat$latitude),
+                coords = c('x', 'y'),
+                crs = 4326)
+img = dat$PicLoc
+
+map1 = leaflet(data = dat) %>%
+  addTiles() %>%
+ addCircleMarkers( lng = ~longitude, lat = ~latitude,
+          label = ~paste(scientific.name, name, sep = ", "),
+          radius=7,
+          labelOptions = labelOptions(style = list("color" = "black"), 
+                  noHide = T, textOnly=T, textsize = "10px")
+         # ,clusterOptions = markerClusterOptions(spiderfyOnMaxZoom=F) # Works better without clustering
+          ) %>% 
+  addCircleMarkers(data = pnt2, group = "pnt2") %>%
+  addPopupImages(img, group = "pnt2", width = 400, height = 400) 
+
+map1
+
+saveWidget(map1, file="../Results/map.html")
 ```
 \
 \
