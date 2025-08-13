@@ -1,11 +1,13 @@
 ---
 title: "Plant observation map"
 author: "Dennis Amnebrink"
-format: html
+format: 
+  html:
+    embed-resources: true
 editor: visual
 ---
 
-A map of all my flora incognita observations of plants around Sweden.
+
 ```{r}
 #| echo: false
 #| warning: false
@@ -17,6 +19,8 @@ library(tidyverse)
 library(renv)
 library(leafpop)
 library(sf)
+library(glue)
+library(kableExtra)
 ```
 
 ```{r}
@@ -25,10 +29,11 @@ library(sf)
 dat <- read.csv("../Data/flora_incognita_2025-07-29T17_58_10/flora_incognita_2025-07-29T17_58_10.csv", header=TRUE)  %>%
   filter(!is.na(longitude)) %>% # Removing observations without coordinates
   mutate(PicLoc  =  paste0("../Data/flora_incognita_2025-07-29T17_58_10/",date,"/",date,"-0.jpg")) %>% # Picture Location for each observation 
-  mutate(newname =  paste0("<iframe  src=","'", PicLoc,"'", ">", "</iframe>"))
+  mutate(newname =  paste0("<iframe  src=","'", PicLoc,"'", ">", "</iframe>")) %>%
+   separate(scientific.name, c("Genus", "Species"),sep= " " , remove = FALSE, extra = "merge")
 ```
 
-
+This dataset contains FloraIncognita observations `r nrow(dat) ` observations covering `r length(unique(dat$scientific.name))` species from  `r length(unique(dat$Genus))` genera. Each observation has a popup for the name, and an accompanying circle which displays the picture.
 
 ```{r}
 #| echo: false
@@ -84,6 +89,7 @@ leaflet() %>%
 
 ```{r}
 #| echo: false
+#| eval: false
 ### This is working, keep it
 
 pnt2 = st_as_sf(data.frame(x = dat$longitude , y = dat$latitude),
@@ -93,12 +99,12 @@ img = dat$PicLoc
 
 map1 = leaflet(data = dat) %>%
   addTiles() %>%
- addCircleMarkers( lng = ~longitude, lat = ~latitude,
+ addCircleMarkers( lng = ~longitude, lat = ~latitude, popup = id,
           label = ~paste(scientific.name, name, sep = ", "),
           radius=7,
           labelOptions = labelOptions(style = list("color" = "black"), 
                   noHide = T, textOnly=T, textsize = "10px")
-         # ,clusterOptions = markerClusterOptions(spiderfyOnMaxZoom=F) # Works better without clustering
+          #,clusterOptions = markerClusterOptions(spiderfyOnMaxZoom=F) # Works better without clustering
           ) %>% 
   addCircleMarkers(data = pnt2, group = "pnt2") %>%
   addPopupImages(img, group = "pnt2", width = 400, height = 400) 
@@ -106,6 +112,108 @@ map1 = leaflet(data = dat) %>%
 map1
 
 saveWidget(map1, file="../Results/map.html")
+```
+
+```{r}
+#| echo: false
+#| label: fig-map
+#| fig-cap: "Map of observations paired markers contain species name and picture."
+
+label_text <- glue(
+  "<b>Scientific name: </b> <i> {dat$scientific.name}</i><br/>",
+  "<b>Swedish name: </b> {dat$name}<br/>") %>%
+  lapply(htmltools::HTML)
+
+pnt2 = st_as_sf(data.frame(x = dat$longitude , y = dat$latitude),
+                coords = c('x', 'y'),
+                crs = 4326)
+img = dat$PicLoc
+
+map1 = leaflet(data = dat) %>%
+  addTiles() %>%
+  addMarkers(~longitude, ~latitude, popup = label_text) %>% 
+  addCircleMarkers(data = pnt2, group = "pnt2") %>%
+  addPopupImages(img, group = "pnt2", width = 400, height = 400) 
+
+
+map1
+
+saveWidget(map1, file="../Results/map.html")
+```
+
+```{r}
+#| echo: false
+#| label: tbl-overview
+#| tbl-cap: "Table containing all different species of this dataset, arranged alphabetically by genus."
+kable(dat %>% distinct(Genus, Species, name) %>% arrange(Genus)) %>% 
+   kable_styling(font_size = 8) %>% 
+scroll_box(width = "500px", height = "400px")
+```
+
+```{r}
+#| echo: false
+#| eval: false
+#Trying to create a UI to filter with shiny
+
+label_text <- glue(
+  "<b>Scientific name: </b> <i> {dat$scientific.name}</i><br/>",
+  "<b>Swedish name: </b> {dat$name}<br/>") %>%
+  lapply(htmltools::HTML)
+
+pnt2 = st_as_sf(data.frame(x = dat$longitude , y = dat$latitude),
+                coords = c('x', 'y'),
+                crs = 4326)
+img = dat$PicLoc
+
+data = dat
+# UI
+# UI
+
+ui <- fluidPage(
+  titlePanel("Searchable Leaflet Map"),
+  sidebarLayout(
+    sidebarPanel(
+      selectInput("Genus", "Filter by Genus:", 
+                  choices = c("All", unique(data$Genus)), 
+                  selected = "All")
+    ),
+    mainPanel(
+      leafletOutput("map")
+    )
+  )
+)
+
+# Server
+server <- function(input, output, session) {
+  filteredData <- reactive({
+    if (input$Genus == "All") {
+      data
+    } else {
+      subset(data, Genus == input$Genus)
+    }
+  })
+  
+  output$map <- renderLeaflet({
+    leaflet(data) %>%
+      addTiles() %>%
+      addMarkers(~longitude, ~latitude, popup = label_text) %>% 
+  addCircleMarkers(data = pnt2, group = "pnt2") %>%
+  addPopupImages(img, group = "pnt2", width = 400, height = 400) 
+  })
+  
+  observe({
+    leafletProxy("map", data = filteredData()) %>%
+      clearMarkers() %>%
+      addMarkers(~longitude, ~latitude, popup = label_text) %>% 
+  addCircleMarkers(data = pnt2, group = "pnt2") %>%
+  addPopupImages(img, group = "pnt2", width = 400, height = 400) 
+  })
+}
+
+# Run the app
+shinyApp(ui, server)
+
+
 ```
 \
 \
