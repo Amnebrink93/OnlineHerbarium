@@ -25,15 +25,22 @@ library(kableExtra)
 
 ```{r}
 #| echo: false
+#| warning: false
  # Data loading
-dat <- read.csv("../Data/flora_incognita_2025-07-29T17_58_10/flora_incognita_2025-07-29T17_58_10.csv", header=TRUE)  %>%
+#Getting pathname and filename from directory, as it changes every time you export your .csv file, for this to work you must put have this document in a folder called "analysis", this directory should be in the same directory as another directory called "Data". In the data directory you put the unzipped version of your downloaded .zip-file from flora incognita.
+
+pathname = list.dirs(path = "../Data/", recursive = FALSE)
+filename = list.files(path = pathname, pattern = ".csv")
+
+ 
+dat <- read.csv(paste0(pathname, "/",filename), header=TRUE)  %>%
   filter(!is.na(longitude)) %>% # Removing observations without coordinates
-  mutate(PicLoc  =  paste0("../Data/flora_incognita_2025-07-29T17_58_10/",date,"/",date,"-0.jpg")) %>% # Picture Location for each observation 
+  mutate(PicLoc  =  paste0(pathname, "/",date,"/",date,"-0.jpg")) %>% # Picture Location for each observation 
   mutate(newname =  paste0("<iframe  src=","'", PicLoc,"'", ">", "</iframe>")) %>%
    separate(scientific.name, c("Genus", "Species"),sep= " " , remove = FALSE, extra = "merge")
 ```
 
-This dataset contains FloraIncognita observations `r nrow(dat) ` observations covering `r length(unique(dat$scientific.name))` species from  `r length(unique(dat$Genus))` genera. Each observation has a popup for the name, and an accompanying circle which displays the picture.
+This dataset contains   `r nrow(dat) ` FloraIncognita observations covering `r length(unique(dat$scientific.name))` species from  `r length(unique(dat$Genus))` genera. Each observation has a popup for the name, and an accompanying circle which displays the picture.
 
 ```{r}
 #| echo: false
